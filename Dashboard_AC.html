@@ -1,0 +1,1973 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard AC - Interaktif</title>
+  <!-- Tailwind + Chart.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ====== Bagian Global ====== */
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: #f5f5f5; }
+    th, td { padding: 12px 10px; text-align: center; border-bottom: 1px solid #ddd; }
+    .status-on { color: green; font-weight: bold; }
+    .status-off { color: red; font-weight: bold; }
+    .dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .dot-green { background: green; }
+    .dot-red { background: red; }
+    .aksi-btn { padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; }
+    .btn-on { background: #00c853; color: #fff; }
+    .btn-off { background: #d32f2f; color: #fff; }
+    .shutdown-btn { margin-top: 20px; background: #d32f2f; color: #fff; border: none; padding: 10px 16px; border-radius: 5px; font-size: 14px; cursor: pointer; }
+    
+    /* Efek hover untuk baris tabel */
+    .clickable-row { cursor: pointer; transition: background-color 0.2s; }
+    .clickable-row:hover { background-color: #f0f9ff; }
+    
+    /* Animasi untuk tombol */
+    .aksi-btn { transition: all 0.3s ease; }
+    .aksi-btn:hover { transform: scale(1.05); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    
+    /* Status indicator */
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    .status-online { background-color: #10B981; }
+    .status-offline { background-color: #EF4444; }
+    
+    /* Status koneksi WebSocket */
+    .connection-status {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-connected {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+    .status-disconnected {
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+    .status-connecting {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+    
+    /* ====== Bagian Overview Tahunan ====== */
+    .oview{ --bg:#f6f7fb; --card:#ffffff; --muted:#8a8f98; --ink:#1c1f24; --shadow:0 6px 20px rgba(18,20,28,.08); --radius:14px; --orange:#ffa000; --grid:#e9ebf0; }
+    .oview *{ box-sizing:border-box }
+    .oview h2{ margin:0 0 18px; font-size:22px; font-weight:700 }
+    .oview .row{ display:grid; grid-template-columns:260px 1fr; gap:20px }
+    .oview .panel{ background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow) }
+    .oview .cards{ display:flex; flex-direction:column; gap:14px }
+    .oview .card{ padding:14px; border-radius:12px; border:1px solid #f0f1f4; background:#fff }
+    .oview .card h4{ margin:0 0 8px; font-size:13px; font-weight:600; color:#6b717a }
+    .oview .card p{ margin:0; font-size:20px; font-weight:800; color:#15181d }
+    .oview .card small{ font-weight:500; color:#7a8088 }
+    .oview .chartbox{ padding:18px 18px 24px }
+    .oview .charthead{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
+    .oview .charthead h3{ margin:0; font-size:16px; font-weight:700 }
+    .oview .range{ background:#f4f5f7; border:1px solid #e9ebf0; border-radius:10px; padding:6px 12px; font-size:13px; color:#3a3f45 }
+    .oview .chart{ position:relative; height:340px; padding:32px 16px 38px 40px; border:1px solid #f0f1f4; border-radius:12px; background:#fff }
+    .oview .chart::before,.oview .chart::after{ content:""; position:absolute; left:40px; right:16px; border-top:1px dashed var(--grid) }
+    .oview .chart::before{ top:86px } .oview .chart::after{ top:160px }
+    .oview .g3,.oview .g4{ position:absolute; left:40px; right:16px; border-top:1px dashed var(--grid) }
+    .oview .g3{ top:234px } .oview .g4{ top:308px }
+    .oview .ylabels{ position:absolute; left:6px; top:24px; bottom:36px; display:flex; flex-direction:column; justify-content:space-between; color:#8c9199; font-size:12px }
+    .oview .ylabels span{ transform:translateY(6px) }
+    .oview .bars{ position:absolute; left:40px; right:16px; bottom:36px; top:24px; display:grid; grid-template-columns:repeat(12,1fr); align-items:end; gap:18px }
+    .oview .bar{ width:100%; background:linear-gradient(#ffa000,#ffa000); border-radius:6px 6px 0 0; box-shadow:inset 0 -1px 0 rgba(0,0,0,.05) }
+    .oview .jan{height:60%} .oview .feb{height:56%} .oview .mar{height:60%}
+    .oview .apr{height:80%} .oview .mei{height:68%} .oview .jun{height:92%}
+    .oview .jul{height:70%} .oview .ags{height:96%} .oview .sep{height:80%}
+    .oview .okt{height:88%} .oview .nov{height:92%} .oview .des{height:78%}
+    .oview .xlabels{ position:absolute; left:40px; right:16px; bottom:8px; display:grid; grid-template-columns:repeat(12,1fr); gap:18px; color:#7c828a; font-size:12px }
+    .oview .xlabels span{ justify-self:center }
+    .oview .tip{ position:absolute; left:175px; top:120px; width:240px; background:#fff; border:1px solid #f0f1f4; border-radius:10px; box-shadow:var(--shadow); padding:10px 12px }
+    .oview .tip b{ display:block; margin-bottom:6px }
+    .oview .tip .l{ color:#6f7680; font-size:12px; line-height:1.5 }
+    /* ====== Bagian Riwayat ====== */
+    .history{ --bg:#f4f6f8; --panel:#ffffff; --muted:#6b7280; --text:#1f2937; --line:#e5e7eb; --head:#f3f4f6; --orange:#f59e0b; --radius:10px; --shadow:0 8px 18px rgba(0,0,0,.06); }
+    .history *{ box-sizing:border-box }
+    .history .appbar{ background:#2f2f2f; color:#fff; text-align:center; padding:12px 16px; font-weight:700; border-radius:8px }
+    .history .panel{ background:var(--panel); border-radius:12px; box-shadow:var(--shadow); padding:22px }
+    .history .title{ font-weight:700; font-size:18px; margin:0 0 4px }
+    .history .subtitle{ color:#9ca3af; font-size:12px; margin-bottom:14px }
+    .history .controls{ display:flex; gap:10px; align-items:center; margin:4px 0 14px; flex-wrap:wrap }
+    .history .select{ display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line); background:#fff; border-radius:8px; padding:10px 12px; color:#374151; min-width:230px; justify-content:space-between }
+    .history .select .left{ display:flex; align-items:center; gap:8px }
+    .history .chip{ display:inline-flex; align-items:center; gap:8px; background:var(--orange); color:#fff; border-radius:8px; padding:10px 14px; font-weight:600; cursor:pointer; border:none; outline:0 }
+    .history .ico{ width:16px; height:16px; display:inline-block }
+    .history .table{ width:100%; border-collapse:separate; border-spacing:0; border:1px solid var(--line); border-radius:10px; overflow:hidden }
+    .history .table thead th{ background:var(--head); text-align:left; padding:12px 14px; color:#4b5563; font-weight:700; border-bottom:1px solid var(--line); font-size:13px }
+    .history .table tbody td{ padding:14px; border-bottom:1px solid var(--line); vertical-align:middle }
+    .history .table tbody tr:last-child td{ border-bottom:0 }
+    .history .month{ font-weight:700; color:#374151 }
+    .history .muted{ color:#6b7280 }
+    
+    /* Responsivitas */
+    @media (max-width:760px){
+      .oview .row{ grid-template-columns:1fr }
+      .history .controls{ flex-direction:column; align-items:flex-start }
+      .history .select, .history .chip{ width:100% }
+      .history .table thead{ display:none }
+      .history .table, .history .table tbody, .history .table tr, .history .table td{ display:block; width:100% }
+      .history .table tr{ border-bottom:1px solid var(--line) }
+      .history .table tbody td{ border:0; padding:10px 12px }
+      .history .table tbody td::before{ content:attr(data-label); display:block; font-size:12px; color:#6b7280; margin-bottom:2px }
+    }
+  
+    /* Titik AC scalable */
+    .ac-dot {
+      background: red;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      width: clamp(10px, 1.2vw, 16px);
+      height: clamp(10px, 1.2vw, 16px);
+    }
+    
+    body {
+      overflow-x: hidden; /* cegah geser horizontal */
+    }
+    
+    html, body {
+      overflow-x: hidden; /* cegah geser horizontal */
+    }
+    .container {
+      position: relative;   /* parent harus relative */
+    }
+    
+    .denah {
+      position: relative;   /* supaya tombol ac-dot bisa absolute di dalamnya */
+      width: 100%;          /* penuh sesuai container */
+      height: auto;         /* proporsional */
+      display: block;
+    }
+    .denah-wrapper {
+      width: 100%;
+      margin: 0 auto;     /* biar tetap center */
+      position: relative; /* supaya tombol absolute nempel */
+    }
+    
+    /* Style untuk titik SVG */
+    .ac-point {
+  cursor: pointer;
+    }
+    
+    .ac-point:hover {
+      transform: none !important;
+  /* tidak ada animasi / scale */
+   }
+
+.ac-point:active {
+  transform: none !important;
+}
+
+
+    .ac-point.active {
+      fill: #10B981;
+    }
+    .ac-point.inactive {
+      fill: #EF4444;
+    }
+
+    .denah-wrapper {
+  width: 90%;   /* sebelumnya 100% */
+  margin: 0 auto;
+  position: relative;
+}
+
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+  <!-- HEADER -->
+  <header class="bg-white shadow-sm">
+    <div class="w-full mx-auto px-4 py-4 flex items-center justify-between">
+      <h1 class="text-lg md:text-xl font-bold">Dashboard AC - Interaktif</h1>
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center">
+          <span class="text-xs text-gray-500 mr-2">Status Koneksi:</span>
+          <span id="connection-status" class="connection-status status-connecting">
+            <span class="status-indicator status-offline"></span>
+            Menghubungkan...
+          </span>
+       </div>
+    </div>
+  </header>
+  <main class="flex flex-col w-full mx-auto px-2 sm:px-4 mt-6 space-y-6 overflow-hidden">
+    <!-- ========== (1) Denah + Statistik Ringkas (Tugas 1) ========== -->
+    <section id="denah" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="denah-wrapper relative w-full ml-0 bg-white shadow rounded-lg p-full flex items-center">
+        <div id="denah-container" class="denah">
+          <!-- SVG Denah dengan titik-titik AC -->
+          <svg viewBox="0 0 1000 800" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+            <!-- Background denah -->
+            <image href="Denah.svg" width="1000" height="800" />
+            
+            <!-- Titik-titik AC -->
+            <!-- Musholah 1 -->
+            <circle id="dot-musholah1" cx="175" cy="760" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('musholah1')" />
+            
+            <!-- Stand Batik 1-7 -->
+            <circle id="dot-standbatik1" cx="350" cy="745" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik1')" />
+            <circle id="dot-standbatik2" cx="470" cy="745" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik2')" />
+            <circle id="dot-standbatik3" cx="600" cy="745" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik3')" />
+            <circle id="dot-standbatik4" cx="660" cy="745" r="8" fill="#10B981" stroke="#fff" stroke-width="2" 
+                    class="ac-point active" onclick="openPopup('standbatik4')" />
+            <circle id="dot-standbatik5" cx="338" cy="630" r="8" fill="#10B981" stroke="#fff" stroke-width="2" 
+                    class="ac-point active" onclick="openPopup('standbatik5')" />
+            <circle id="dot-standbatik6" cx="420" cy="650" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik6')" />
+            <circle id="dot-standbatik7" cx="627" cy="650" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik7')" />
+            
+            <!-- Kasir EDU 1 -->
+            <circle id="dot-kasiredu1" cx="800" cy="728" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('kasiredu1')" />
+            
+            <!-- Kasir Stand Batik Premium 1 -->
+            <circle id="dot-kasirstandbatikpremium1" cx="824" cy="555" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('kasirstandbatikpremium1')" />
+            
+            <!-- Stand Batik Premium 1-2 -->
+            <circle id="dot-standbatikpremium1" cx="773" cy="456" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatikpremium1')" />
+            <circle id="dot-standbatikpremium2" cx="805" cy="605" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatikpremium2')" />
+            
+            <!-- Stand Batik 8-25 -->
+            <circle id="dot-standbatik8" cx="660" cy="500" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik8')" />
+            <circle id="dot-standbatik9" cx="699" cy="500" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik9')" />
+            <circle id="dot-standbatik10" cx="570" cy="456" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik10')" />
+            <circle id="dot-standbatik11" cx="615" cy="456" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik11')" />
+            <circle id="dot-standbatik12" cx="545" cy="409" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik12')" />
+            <circle id="dot-standbatik13" cx="620" cy="420" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik13')" />
+            <circle id="dot-standbatik14" cx="715" cy="390" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik14')" />
+            <circle id="dot-standbatik15" cx="545" cy="370" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik15')" />
+            <circle id="dot-standbatik16" cx="670" cy="330" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik16')" />
+            <circle id="dot-standbatik17" cx="503" cy="300" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik17')" />
+            <circle id="dot-standbatik18" cx="503" cy="260" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik18')" />
+            <circle id="dot-standbatik19" cx="627" cy="283" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik19')" />
+            <circle id="dot-standbatik20" cx="765" cy="245" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik20')" />
+            <circle id="dot-standbatik21" cx="527" cy="185" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik21')" />
+            <circle id="dot-standbatik22" cx="656" cy="147" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik22')" />
+            <circle id="dot-standbatik23" cx="790" cy="155" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik23')" />
+            <circle id="dot-standbatik24" cx="627" cy="85" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik24')" />
+            <circle id="dot-standbatik25" cx="805" cy="85" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik25')" />
+            
+            <!-- Stand Batik 26-28 -->
+            <circle id="dot-standbatik26" cx="715" cy="50" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik26')" />
+            <circle id="dot-standbatik27" cx="893" cy="50" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik27')" />
+            <circle id="dot-standbatik28" cx="920" cy="60" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatik28')" />
+            
+            <!-- Stand Batik Kitchen 1-7 -->
+            <circle id="dot-standbatikkitchen1" cx="475" cy="85" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatikkitchen1')" />
+            <circle id="dot-standbatikkitchen2" cx="313" cy="123" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatikkitchen2')" />
+            <circle id="dot-standbatikkitchen3" cx="258" cy="85" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatikkitchen3')" />
+            <circle id="dot-standbatikkitchen4" cx="210" cy="125" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatikkitchen4')" />
+            <circle id="dot-standbatikkitchen5" cx="240" cy="58" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatikkitchen5')" />
+            <circle id="dot-standbatikkitchen6" cx="215" cy="60" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatikkitchen6')" />
+            <circle id="dot-standbatikkitchen7" cx="160" cy="70" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standbatikkitchen7')" />
+            
+            <!-- Kasir Stand Batik Utama 1-2 -->
+            <circle id="dot-kasirstandbatikutama1" cx="403" cy="180" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('kasirstandbatikutama1')" />
+            <circle id="dot-kasirstandbatikutama2" cx="455" cy="180" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('kasirstandbatikutama2')" />
+            
+            <!-- Stand Makanan 1 -->
+            <circle id="dot-standmakanan1" cx="430" cy="315" r="8" fill="#EF4444" stroke="#fff" stroke-width="2" 
+                    class="ac-point inactive" onclick="openPopup('standmakanan1')" />
+          </svg>
+        </div>
+      </div>
+
+     <!-- Ringkasan + Grafik -->
+<div class="flex flex-col space-y-4">
+  <!-- 4 card ringkasan -->
+  <div class="grid grid-cols-4 gap-3">
+  <!-- Total AC Aktif -->
+  <div class="bg-white shadow rounded-lg p-3 flex flex-col">
+  <div class="flex items-center space-x-2">
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+  <path d="M12 3a4 4 0 014 4 4 4 0 01-8 0 4 4 0 014-4zm0 7c-4.418 0-8 2.239-8 5v2h16v-2c0-2.761-3.582-5-8-5z"/>
+  </svg>
+  <h3 class="text-sm font-semibold text-gray-700">Total AC Aktif</h3>
+  </div>
+  <p class="text-base font-bold text-gray-900 mt-1" id="total-aktif">6</p>
+  <p class="text-xs text-green-600 mt-1">▲ +3 vs kemarin</p>
+  </div>
+  
+  
+  <!-- Konsumsi Daya -->
+  <div class="bg-white shadow rounded-lg p-3 flex flex-col">
+  <div class="flex items-center space-x-2">
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+  <path d="M13 2L3 14h7l-1 8 11-13h-7l1-9z"/>
+  </svg>
+  <h3 class="text-sm font-semibold text-gray-700">Konsumsi Daya</h3>
+  </div>
+  <p class="text-base font-bold text-gray-900 mt-1">130 kWh</p>
+  <p class="text-xs text-green-600 mt-1">▲ +5 vs kemarin</p>
+  </div>
+  
+  
+  <!-- Suhu Rata-rata -->
+  <div class="bg-white shadow rounded-lg p-3 flex flex-col">
+  <div class="flex items-center space-x-2">
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+  <path d="M14 14.76V5a2 2 0 10-4 0v9.76a4 4 0 104 0z"/>
+  </svg>
+  <h3 class="text-sm font-semibold text-gray-700">Suhu Rata-Rata</h3>
+  </div>
+  <p class="text-base font-bold text-gray-900 mt-1">23.5 °C</p>
+  <p class="text-xs text-green-600 mt-1">▲ +3 vs kemarin</p>
+  </div>
+  
+  
+  <!-- Estimasi Biaya -->
+  <div class="bg-white shadow rounded-lg p-3 flex flex-col">
+  <div class="flex items-center space-x-2">
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+  <path d="M3 6a1 1 0 011-1h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6zm8 6a3 3 0 100-6 3 3 0 000 6zm8-4h-2a5 5 0 01-10 0H5v8h14V8z"/>
+  </svg>
+  <h3 class="text-sm font-semibold text-gray-700">Estimasi Biaya</h3>
+  </div>
+  <p class="text-base font-bold text-gray-900 mt-1">Rp7.100.000</p>
+  <p class="text-xs text-green-600 mt-1">▲ +3 vs kemarin</p>
+  </div>
+  </div>
+        
+        
+        
+
+<!-- Grafik konsumsi daya -->
+<div class="bg-white rounded-lg shadow p-4 w-full h-full">
+  <div class="flex flex-col mb-2">
+  <h2 class="text-sm font-semibold">Konsumsi Daya (kWh)</h2>
+  <span class="text-xs text-red-500">● Live Data</span>
+  </div>
+  <p class="text-lg font-bold text-gray-900">17,125 kWh <span class="text-xs text-green-600">▲ +3 vs kemarin</span></p>
+  <canvas id="chartKonsumsi" class="w-full h-full mt-2"></canvas>
+  </div>
+  </div>
+    </section>
+    
+    <!-- Popup Musholah 1 AC -->
+    <div id="popupmusholah1" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('musholah1')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Musholah 1</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Musholah 1</span></div>
+          <div class="flex justify-between"><span>Durasi Aktif</span><span class="font-semibold">120 Menit</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">120 kWh</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">22°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">110 V</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">+100</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">Rp70.000</span></div>
+        </div>
+        <button id="popupBtn-musholah1"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(1); closePopup('musholah1')">Memuat...</button>
+      </div>
+    </div>
+    <!-- Popup Stand Batik 1 -->
+    <div id="popupstandbatik1" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatik1')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Stand Batik 1</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 1</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatik1"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(2); closePopup('standbatik1')">Memuat...</button>
+      </div>
+    </div>
+     <!-- Popup Stand Batik 2 -->
+     <div id="popupstandbatik2" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatik2')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Stand Batik 2</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 2</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatik2"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(3); closePopup('standbatik2')">Memuat...</button>
+      </div>
+    </div>
+     <!-- Popup Stand Batik 3 -->
+     <div id="popupstandbatik3" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatik3')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Stand Batik 3</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 3</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatik3"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(4); closePopup('standbatik3')">Memuat...</button>
+      </div>
+    </div>
+     <!-- Popup Stand Batik 4 -->
+     <div id="popupstandbatik4" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatik4')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Stand Batik 4</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 4</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatik4"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(5); closePopup('standbatik4')">Memuat...</button>
+      </div>
+    </div>
+     <!-- Popup Stand Batik 5 -->
+     <div id="popupstandbatik5" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatik5')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Stand Batik 5</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 5</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatik5"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(6); closePopup('standbatik5')">Memuat...</button>
+      </div>
+    </div>
+     <!-- Popup Stand Batik 6 -->
+     <div id="popupstandbatik6" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatik6')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Stand Batik 6</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 6</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatik6"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(7); closePopup('standbatik6')">Memuat...</button>
+      </div>
+    </div>
+     <!-- Popup Stand Batik 7 -->
+     <div id="popupstandbatik7" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatik7')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Stand Batik 7</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 7</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatik7"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(8); closePopup('standbatik7')">Memuat...</button>
+      </div>
+    </div>
+     <!-- Popup Kasir EDU 1 -->
+     <div id="popupkasiredu1" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('kasiredu1')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Kasir EDU 1</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Kasir EDU 1</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-kasiredu1"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(9); closePopup('kasiredu1')">Memuat...</button>
+      </div>
+    </div>
+      <!-- Popup Kasir Stand Batik Premium 1 -->
+      <div id="popupkasirstandbatikpremium1" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-80 relative">
+          <button onclick="closePopup('kasirstandbatikpremium1')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+          <h2 class="text-sm font-semibold mb-3">Kasir Stand Batik Premium 1</h2>
+          <div class="text-xs space-y-2">
+            <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Kasir Stand Batik Premium 1</span></div>
+            <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+            <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+            <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+            <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+            <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+            <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+          </div>
+          <button id="popupBtn-kasirstandbatikpremium1"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(10); closePopup('kasirstandbatikpremium1')">Memuat...</button>
+        </div>
+      </div>
+       <!-- Popup Stand Batik Premium 1 -->
+       <div id="popupstandbatikpremium1" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-80 relative">
+          <button onclick="closePopup('standbatikpremium1')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+          <h2 class="text-sm font-semibold mb-3">Stand Batik Premium 1</h2>
+          <div class="text-xs space-y-2">
+            <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik Premium 1</span></div>
+            <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+            <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+            <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+            <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+            <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+            <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+          </div>
+          <button id="popupBtn-standbatikpremium1"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(11); closePopup('standbatikpremium1')">Memuat...</button>
+        </div>
+      </div>
+        <!-- Popup Stand Batik Premium 2 -->
+        <div id="popupstandbatikpremium2" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg p-6 w-80 relative">
+            <button onclick="closePopup('standbatikpremium2')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+            <h2 class="text-sm font-semibold mb-3">Stand Batik Premium 2</h2>
+            <div class="text-xs space-y-2">
+              <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik Premium 2</span></div>
+              <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+              <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+              <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+              <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+              <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+              <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+            </div>
+            <button id="popupBtn-standbatikpremium2"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(12); closePopup('standbatikpremium2')">Memuat...</button>
+          </div>
+        </div>
+          <!-- Popup Stand Batik 8 -->
+          <div id="popupstandbatik8" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik8')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 8</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 8</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik8"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(13); closePopup('standbatik8')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 9 -->
+           <div id="popupstandbatik9" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik9')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 9</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 9</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik9"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(14); closePopup('standbatik9')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 10 -->
+           <div id="popupstandbatik10" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik10')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 10</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 10</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik10"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(15); closePopup('standbatik10')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 11 -->
+           <div id="popupstandbatik11" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik11')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 11</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 11</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik11"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(16); closePopup('standbatik11')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 12 -->
+           <div id="popupstandbatik12" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik12')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 12</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 12</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik12"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(17); closePopup('standbatik12')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 13 -->
+           <div id="popupstandbatik13" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik13')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 13</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 13</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik13"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(18); closePopup('standbatik13')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 14 -->
+           <div id="popupstandbatik14" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik14')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 14</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 14</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik14"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(19); closePopup('standbatik14')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 15 -->
+           <div id="popupstandbatik15" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik15')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 15</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 15</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik15"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(20); closePopup('standbatik15')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 16 -->
+           <div id="popupstandbatik16" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik16')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 16</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 16</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik16"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(21); closePopup('standbatik16')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 17 -->
+           <div id="popupstandbatik17" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik17')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 17</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 17</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik17"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(22); closePopup('standbatik17')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 18 -->
+           <div id="popupstandbatik18" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik18')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 18</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 18</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik18"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(23); closePopup('standbatik18')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 19 -->
+           <div id="popupstandbatik19" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik19')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 19</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 19</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik19"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(24); closePopup('standbatik19')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 20 -->
+           <div id="popupstandbatik20" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik20')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 20</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 20</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik20"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(25); closePopup('standbatik20')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 21 -->
+           <div id="popupstandbatik21" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik21')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 21</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 21</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik21"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(26); closePopup('standbatik21')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 22 -->
+           <div id="popupstandbatik22" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik22')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 22</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 22</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik22"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(27); closePopup('standbatik22')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 23 -->
+           <div id="popupstandbatik23" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik23')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 23</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 23</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik23"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(28); closePopup('standbatik23')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 24 -->
+           <div id="popupstandbatik24" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik24')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 24</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 24</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik24"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(29); closePopup('standbatik24')">Memuat...</button>
+            </div>
+          </div>
+           <!-- Popup Stand Batik 25 -->
+           <div id="popupstandbatik25" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik25')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 25</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 25</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik25"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(30); closePopup('standbatik25')">Memuat...</button>
+            </div>
+          </div>
+          <!-- Popup Stand Batik 26 -->
+          <div id="popupstandbatik26" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik26')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 26</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 26</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik26"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(31); closePopup('standbatik26')">Memuat...</button>
+            </div>
+          </div>
+          <!-- Popup Stand Batik 27 -->
+          <div id="popupstandbatik27" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik27')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 27</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 27</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik27"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(32); closePopup('standbatik27')">Memuat...</button>
+            </div>
+          </div>
+          <!-- Popup Stand Batik 28 -->
+          <div id="popupstandbatik28" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatik28')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik 28</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik 28</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatik28"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(33); closePopup('standbatik28')">Memuat...</button>
+            </div>
+          </div>
+          <!-- Popup Stand Batik Kitchen 1 -->
+          <div id="popupstandbatikkitchen1" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatikkitchen1')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik Kitchen 1</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik Kitchen 1</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatikkitchen1"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(34); closePopup('standbatikkitchen1')">Memuat...</button>
+            </div>
+          </div>
+          <!-- Popup Stand Batik Kitchen 2 -->
+          <div id="popupstandbatikkitchen2" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatikkitchen2')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik Kitchen 2</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik Kitchen 2</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatikkitchen2"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(35); closePopup('standbatikkitchen2')">Memuat...</button>
+            </div>
+          </div>
+          <!-- Popup Stand Batik Kitchen 3 -->
+          <div id="popupstandbatikkitchen3" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-80 relative">
+              <button onclick="closePopup('standbatikkitchen3')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+              <h2 class="text-sm font-semibold mb-3">Stand Batik Kitchen 3</h2>
+              <div class="text-xs space-y-2">
+                <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik Kitchen 3</span></div>
+                <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+                <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+                <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+                <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+              </div>
+              <button id="popupBtn-standbatikkitchen3"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(36); closePopup('standbatikkitchen3')">Memuat...</button>
+            </div>
+          </div>
+     <!-- Popup Stand Batik Kitchen 4 -->
+     <div id="popupstandbatikkitchen4" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatikkitchen4')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">KStand Batik Kitchen 4</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik Kitchen 4</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatikkitchen4"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(37); closePopup('standbatikkitchen4')">Memuat...</button>
+      </div>
+    </div>
+     <!-- Popup Stand Batik Kitchen 5 -->
+     <div id="popupstandbatikkitchen5" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatikkitchen5')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Stand Batik Kitchen 5</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik Kitchen 5</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatikkitchen5"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(38); closePopup('standbatikkitchen5')">Memuat...</button>
+      </div>
+    </div>
+     <!-- Popup Stand Batik Kitchen 6 -->
+     <div id="popupstandbatikkitchen6" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatikkitchen6')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Stand Batik Kitchen 6</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik Kitchen 6</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatikkitchen6"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(39); closePopup('standbatikkitchen6')">Memuat...</button>
+      </div>
+    </div>
+    <!-- Popup Stand Batik Kitchen 7 -->
+    <div id="popupstandbatikkitchen7" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('standbatikkitchen7')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Stand Batik Kitchen 7</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Batik Kitchen 7</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-standbatikkitchen7"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(40); closePopup('standbatikkitchen7')">Memuat...</button>
+      </div>
+    </div>
+    <!-- Popup Kasir Stand Batik Utama 1 -->
+    <div id="popupkasirstandbatikutama1" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('kasirstandbatikutama1')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Kasir Stand Batik Utama 1</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Kasir Stand Batik Utama 1</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-kasirstandbatikutama1"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(41); closePopup('kasirstandbatikutama1')">Memuat...</button>
+      </div>
+    </div>
+    <!-- Popup Kasir Stand Batik Utama 2 -->
+    <div id="popupkasirstandbatikutama2" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-80 relative">
+        <button onclick="closePopup('kasirstandbatikutama2')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+        <h2 class="text-sm font-semibold mb-3">Kasir Stand Batik Utama 2</h2>
+        <div class="text-xs space-y-2">
+          <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Kasir Stand Batik Utama 2</span></div>
+          <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+          <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+          <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+          <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+        </div>
+        <button id="popupBtn-kasirstandbatikutama2"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(42); closePopup('kasirstandbatikutama2')">Memuat...</button>
+      </div>
+    </div>
+        <!-- Popup Stand Makanan 1 -->
+        <div id="popupstandmakanan1" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg p-6 w-80 relative">
+            <button onclick="closePopup('standmakanan1')" class="absolute top-2 right-2 text-gray-600 hover:text-gray-800" aria-label="Tutup">✖</button>
+            <h2 class="text-sm font-semibold mb-3">Stand Makanan 1</h2>
+            <div class="text-xs space-y-2">
+              <div class="flex justify-between"><span>Zona</span><span class="font-semibold">Stand Makanan 1</span></div>
+              <div class="flex justify-between"><span>Status</span><span class="font-semibold text-red-600">OFF</span></div>
+              <div class="flex justify-between"><span>Daya</span><span class="font-semibold">—</span></div>
+              <div class="flex justify-between"><span>AVG. Suhu</span><span class="font-semibold">26°C</span></div>
+              <div class="flex justify-between"><span>Voltage</span><span class="font-semibold">—</span></div>
+              <div class="flex justify-between"><span>Arus</span><span class="font-semibold">—</span></div>
+              <div class="flex justify-between"><span>Estimasi Biaya</span><span class="font-semibold">—</span></div>
+            </div>
+            <button id="popupBtn-standmakanan1"class="mt-4 w-full py-2 rounded transition-colors bg-gray-200 text-black"onclick="toggleACStatus(43); closePopup('standmakanan1')">Memuat...</button>
+          </div>
+        </div>
+    <!-- Wrapper grafik + alert -->
+    <section class="grid grid-cols-1 md:grid-cols-12 gap-4">
+      <!-- ========== (2) Grafik Konsumsi & (3) Grafik Operasional ========== -->
+      <div class="bg-white rounded-lg shadow p-4 md:col-span-9">
+        <h2 class="text-xs font-semibold mb-2">Real Data Statistik Operasional AC</h2>
+        <span class="text-[10px] text-gray-500" id="unit-aktif-text">22 Unit AC Aktif</span>
+        <canvas id="chartAC" height="100" aria-label="Grafik jumlah unit aktif"></canvas>
+      </div>
+    <!-- ========== (4) Notification Alert ========== -->
+    <div class="bg-white rounded-lg shadow p-4 md:col-span-3">
+      <h2 class="text-xs font-semibold">Notification Alert</h2>
+      <ul class="space-y-2 text-xs">
+        <li><span class="font-bold text-yellow-600">Zona Kasir 3:</span> Konsumsi sedikit diatas rata-rata</li>
+        <li><span class="font-bold text-red-600">Foodcourt 2:</span> Boros penggunaan, segera lakukan penanganan</li>
+        <li><span class="font-bold text-yellow-600">Zona Kasir 3:</span> Konsumsi melebihi alarm rata-rata</li>
+        <li><span class="font-bold text-red-600">Lobby 1:</span> Suara pengap, segera lakukan penanganan</li>
+      </ul>
+    </div>
+  </section>
+
+    <!-- ========== (5) Statistik Unit AC Realtime ========== -->
+    <section class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-bold">Statistik Unit AC Aktif Real-time</h2>
+      <div class="text-sm text-gray-500 mb-3">-Live Data, <span id="current-date"></span></div>
+      <div class="flex justify-between mb-3 gap-2">
+        <input type="text" id="search-input" placeholder="Cari Unit AC..." 
+               class="border rounded px-2 py-1 text-sm flex-1 max-w-xs"
+               oninput="handleSearch()">
+        <button class="bg-orange-500 text-white px-3 py-1 rounded hover:bg-orange-600 transition-colors">Export</button>
+      </div>      
+      <div class="overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Zona</th>
+              <th>Unit AC</th>
+              <th>Status AC</th>
+              <th>Status Alat</th>
+              <th>AVG. AC Aktif</th>
+              <th>AVG. Suhu</th>
+              <th>Daya (kWh)</th>
+              <th>Voltage (V)</th>
+              <th>Estimasi Biaya</th>
+              <th>Deteksi Arus</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="ac-table-body">
+            <!-- Data akan diisi oleh JavaScript -->
+          </tbody>
+        </table>
+      
+        <!-- ✅ Tambahan navigasi pagination -->
+        <div class="flex justify-between mt-2">
+          <button onclick="prevPage()" class="px-3 py-1 bg-gray-300 rounded">Prev</button>
+          <span id="page-info" class="text-sm"></span>
+          <button onclick="nextPage()" class="px-3 py-1 bg-gray-300 rounded">Next</button>
+        </div>
+          <div class="flex gap-2 mt-2">
+            <button class="shutdown-btn bg-green-600 hover:bg-green-700" onclick="startAll()">Start All</button>
+            <button class="shutdown-btn hover:bg-red-700" onclick="shutdownAll()">Shutdown All</button>
+          </div>
+          
+      
+    </section>
+    <!-- ========== (6) Overview Tahunan ========== -->
+    <section class="oview bg-[var(--bg)] rounded-lg p-4 md:p-6">
+      <h2>Overview Tahunan</h2>
+      <div class="row">
+        <!-- LEFT -->
+        <div class="cards">
+          <div class="card">
+            <h4>Total Biaya</h4>
+            <p>Rp2.250.000.000</p>
+          </div>
+          <div class="card">
+            <h4>Avg. AC Aktif</h4>
+            <p>80 <small>AC/hari</small></p>
+          </div>
+          <div class="card">
+            <h4>Avg. Jam Operasional AC</h4>
+            <p>387,5 <small>Jam/bulan</small></p>
+          </div>
+        </div>
+        <!-- RIGHT -->
+        <div class="panel chartbox">
+          <div class="charthead">
+            <h3>Overview Rata-rata Penggunaan AC Selama 1 Tahun</h3>
+            <div class="range">Januari - Desember 2025</div>
+          </div>
+          <div class="chart">
+            <div class="ylabels">
+              <span>25</span><span>20</span><span>15</span><span>10</span><span>5</span><span>0</span>
+            </div>
+            <div class="bars">
+              <div class="bar jan"></div><div class="bar feb"></div><div class="bar mar"></div><div class="bar apr"></div><div class="bar mei"></div><div class="bar jun"></div>
+              <div class="bar jul"></div><div class="bar ags"></div><div class="bar sep"></div><div class="bar okt"></div><div class="bar nov"></div><div class="bar des"></div>
+            </div>
+            <div class="xlabels">
+              <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>Mei</span><span>Jun</span>
+              <span>Jul</span><span>Ags</span><span>Sep</span><span>Okt</span><span>Nov</span><span>Des</span>
+            </div>
+            <!-- Tooltip statis Feb -->
+            <div class="tip">
+              <b>Februari</b>
+              <div class="l">Biaya: Rp125.000.000</div>
+              <div class="l">Durasi Operasional: 390 jam</div>
+              <div class="l">Avg. AC Aktif: 22 AC</div>
+            </div>
+            <div class="g3"></div><div class="g4"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- ========== (7) Riwayat Data Penggunaan AC ========== -->
+    <section class="history">
+      <div class="panel mt-2">
+        <h2 class="title">Riwayat Data Penggunaan AC</h2>
+        <div class="controls">
+          <div class="select" aria-label="Rentang tanggal">
+            <div class="left">
+              <!-- kalender -->
+              <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="17" rx="3" stroke="#9ca3af" stroke-width="1.6"/>
+                <path d="M8 2v4M16 2v4M3 9h18" stroke="#9ca3af" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <span>Januari - Desember 2025</span>
+            </div>
+            <!-- caret -->
+            <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 9l6 6 6-6" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <button class="chip">
+            <!-- export icon -->
+            <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M5 15v3a3 3 0 003 3h8a3 3 0 003-3v-3" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Export
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:18%">Bulan</th>
+                <th>AVG. AC Aktif</th>
+                <th>AVG. Durasi AC</th>
+                <th>AVG. Suhu</th>
+                <th>Total Daya</th>
+                <th>Total Voltage</th>
+                <th>Total Biaya</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="month" data-label="Bulan">Januari</td>
+                <td data-label="AVG. AC Aktif">22 AC/hari</td>
+                <td data-label="AVG. Durasi AC">8 Jam/hari</td>
+                <td data-label="AVG. Suhu">24°C</td>
+                <td data-label="Total Daya">1.643 kWh</td>
+                <td data-label="Total Voltage">249 Voltage</td>
+                <td data-label="Total Biaya">Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">Februari</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">Maret</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">April</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">Mei</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">Juni</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">Juli</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">Agustus</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">September</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">Oktober</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">November</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+              <tr>
+                <td class="month">Desember</td>
+                <td>22 AC/hari</td><td>8 Jam/hari</td><td>24°C</td>
+                <td>1.643 kWh</td><td>249 Voltage</td><td>Rp136.000</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+  <!-- SCRIPTS -->
+  <script>
+    // Data untuk tabel AC
+    const acData = [
+      { id: 1, zona: "Musholah 1", ac: "1 AC", statusAC: "on", statusAlat: "on", avgAktif: "3 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 0 },
+      { id: 2, zona: "Stand Batik 1", ac: "2 AC", statusAC: "on", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 3, zona: "Stand Batik 2", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "3 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 4, zona: "Stand Batik 3", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 5, zona: "Stand Batik 4", ac: "2 AC", statusAC: "on", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 6, zona: "Stand Batik 5", ac: "1 AC", statusAC: "on", statusAlat: "on", avgAktif: "3 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 0 },
+      { id: 7, zona: "Stand Batik 6", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 8, zona: "Stand Batik 7", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 9, zona: "Kasir EDU 1", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 10, zona: "Kasir Stand Batik Premium 1", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 11, zona: "Stand Batik Premium 1", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 12, zona: "Stand Batik Premium 2", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 13, zona: "Stand Batik 8", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 14, zona: "Stand Batik 9", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 15, zona: "Stand Batik 10", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 16, zona: "Stand Batik 11", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 17, zona: "Stand Batik 12", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 18, zona: "Stand Batik 13", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 19, zona: "Stand Batik 14", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 20, zona: "Stand Batik 15", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 21, zona: "Stand Batik 16", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 22, zona: "Stand Batik 17", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 23, zona: "Stand Batik 18", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 24, zona: "Stand Batik 19", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 25, zona: "Stand Batik 20", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 26, zona: "Stand Batik 21", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 27, zona: "Stand Batik 22", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 28, zona: "Stand Batik 23", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 29, zona: "Stand Batik 24", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 30, zona: "Stand Batik 25", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 31, zona: "Stand Batik 26", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 32, zona: "Stand Batik 27", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 33, zona: "Stand Batik 28", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 34, zona: "Stand Batik Kitchen 1", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 35, zona: "Stand Batik Kitchen 2", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 36, zona: "Stand Batik Kitchen 3", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 37, zona: "Stand Batik Kitchen 4", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 38, zona: "Stand Batik Kitchen 5", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 39, zona: "Stand Batik Kitchen 6", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 40, zona: "Stand Batik Kitchen 7", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 41, zona: "Kasir Stand Batik Utama 1", ac: "1 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 42, zona: "Kasir Stand Batik Utama 2", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+      { id: 43, zona: "Stand Makanan 1", ac: "2 AC", statusAC: "off", statusAlat: "on", avgAktif: "4 AC/Jam", suhu: "24°C", daya: 274, voltage: 249, biaya: "Rp136.000", arus: 200 },
+    ];
+    
+    let filteredData = [...acData]; // default = semua data
+
+    // Variabel WebSocket
+    let socket;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    const reconnectDelay = 3000;
+    
+    // Fungsi untuk menghubungkan ke WebSocket Node-RED
+    function connectWebSocket() {
+      // Ganti dengan alamat IP Node-RED Anda
+      const wsUrl = 'ws://192.168.223.21:1880/ac-control';
+      
+      // Update status koneksi
+      updateConnectionStatus('connecting');
+      
+      // Buat koneksi WebSocket
+      socket = new WebSocket(wsUrl);
+      
+      // Event handler saat koneksi terbuka
+      socket.onopen = function() {
+        console.log('Terhubung ke Node-RED WebSocket');
+        updateConnectionStatus('connected');
+        reconnectAttempts = 0;
+        
+        // Muat data dari database saat terhubung
+        loadACData();
+      };
+      
+      // Event handler saat menerima pesan
+      socket.onmessage = function(event) {
+        console.log('Pesan diterima:', event.data);
+        
+        try {
+          const data = JSON.parse(event.data);
+          
+          // Handle pesan dari Node-RED
+          if (data.type === 'connection') {
+            console.log(data.message);
+          } else if (data.status === 'success') {
+            console.log(`Feedback diterima: ${data.device_id} -> ${data.action}`);
+            
+            // Update status AC berdasarkan respons dari Node-RED
+            const acIndex = acData.findIndex(ac => ac.zona === data.device_id);
+            if (acIndex !== -1) {
+              // Pastikan status sesuai dengan feedback
+              acData[acIndex].statusAC = data.action;
+              renderAcTable();
+              updateCharts();
+              updateDots(); // Update titik di SVG
+              
+              // Setelah menerima feedback, muat ulang data dari database
+              setTimeout(() => {
+                console.log('Memuat ulang data dari database...');
+                loadACData();
+              }, 500);
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing JSON:', e);
+        }
+      };
+      
+      // Event handler saat koneksi tertutup
+      socket.onclose = function() {
+        console.log('Koneksi WebSocket terputus');
+        updateConnectionStatus('disconnected');
+        
+        // Coba hubungkan kembali
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          console.log(`Mencoba menghubungkan kembali (${reconnectAttempts}/${maxReconnectAttempts})...`);
+          setTimeout(connectWebSocket, reconnectDelay);
+        } else {
+          console.error('Gagal menghubungkan kembali setelah beberapa percobaan');
+        }
+      };
+      
+      // Event handler saat terjadi error
+      socket.onerror = function(error) {
+        console.error('WebSocket Error:', error);
+        updateConnectionStatus('error');
+      };
+    }
+    
+    // Fungsi untuk memperbarui status koneksi di UI
+    function updateConnectionStatus(status) {
+      const statusElement = document.getElementById('connection-status');
+      
+      switch(status) {
+        case 'connected':
+          statusElement.className = 'connection-status status-connected';
+          statusElement.innerHTML = '<span class="status-indicator status-online"></span>Terhubung';
+          break;
+        case 'disconnected':
+          statusElement.className = 'connection-status status-disconnected';
+          statusElement.innerHTML = '<span class="status-indicator status-offline"></span>Terputus';
+          break;
+        case 'connecting':
+          statusElement.className = 'connection-status status-connecting';
+          statusElement.innerHTML = '<span class="status-indicator status-offline"></span>Menghubungkan...';
+          break;
+        case 'error':
+          statusElement.className = 'connection-status status-disconnected';
+          statusElement.innerHTML = '<span class="status-indicator status-offline"></span>Error';
+          break;
+      }
+    }
+    
+    // Fungsi untuk mengirim perintah ke Node-RED
+    function sendCommand(deviceId, action) {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket tidak terhubung');
+        // Coba hubungkan kembali
+        if (socket.readyState === WebSocket.CLOSED) {
+          connectWebSocket();
+        }
+        return false;
+      }
+      
+      const command = {
+        device_id: deviceId,
+        action: action,
+        timestamp: new Date().toISOString()
+      };
+      
+      try {
+        socket.send(JSON.stringify(command));
+        console.log('Perintah terkirim:', command);
+        return true;
+      } catch (e) {
+        console.error('Gagal mengirim perintah:', e);
+        return false;
+      }
+    }
+    
+    // Fungsi untuk memuat data dari database
+    async function loadACData() {
+      try {
+        console.log('Memuat data AC dari database...');
+        
+        const response = await fetch('http://192.168.223.21:3306/ac_control', {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Response bukan JSON:', text.substring(0, 200));
+          throw new Error('Response bukan JSON');
+        }
+        
+        const data = await response.json();
+        console.log('Data dari database:', data);
+        
+        // Update global acData
+        acData.length = 0; // Kosongkan array
+        data.forEach(ac => acData.push(ac));
+        filteredData = [...acData]; // ✅ sync supaya search tetap jalan
+        
+        // Render ulang tabel dan grafik
+        renderAcTable();
+        updateCharts();
+        updateDots(); // Update titik di SVG
+        
+        console.log('Data AC berhasil dimuat dari database');
+      } catch (error) {
+        console.error('Gagal memuat data AC:', error);
+      }
+    }
+    
+    let currentPage = 1;
+    const rowsPerPage = 10;
+
+    function renderAcTable() {
+      const tableBody = document.getElementById('ac-table-body');
+      tableBody.innerHTML = '';
+
+      const start = (currentPage - 1) * rowsPerPage;
+      const end = start + rowsPerPage;
+      const pageData = filteredData.slice(start, end);
+
+      pageData.forEach(ac => {
+        const row = document.createElement('tr');
+        row.className = 'clickable-row';
+        row.onclick = () => toggleACStatus(ac.id);
+
+        row.innerHTML = `
+          <td>${ac.zona}</td>
+          <td>${ac.ac}</td>
+          <td class="status-${ac.statusAC}">
+            <span class="status-indicator status-${ac.statusAC === 'on' ? 'online' : 'offline'}"></span>
+            ${ac.statusAC === 'on' ? 'On' : 'Off'}
+          </td>
+          <td>
+            <span class="dot dot-${ac.statusAlat === 'on' ? 'green' : 'red'}"></span>
+            ${ac.statusAlat === 'on' ? 'On' : 'Off'}
+          </td>
+          <td>${ac.avgAktif}</td>
+          <td>${ac.suhu}</td>
+          <td>${ac.daya}</td>
+          <td>${ac.voltage}</td>
+          <td>${ac.biaya}</td>
+          <td>${ac.arus > 0 ? '+' + ac.arus : ac.arus}</td>
+          <td>
+            <button class="aksi-btn btn-${ac.statusAC === 'on' ? 'off' : 'on'}" 
+                    onclick="event.stopPropagation(); toggleACStatus(${ac.id})">
+              ${ac.statusAC === 'on' ? 'OFF' : 'ON'}
+            </button>
+          </td>
+        `;
+
+        tableBody.appendChild(row);
+      });
+
+      // ✅ Update info halaman
+      document.getElementById('page-info').textContent =
+        `Halaman ${currentPage} dari ${Math.ceil(acData.length / rowsPerPage)}`;
+
+      updateStatistics();
+    }
+    
+    function nextPage() {
+      if (currentPage < Math.ceil(acData.length / rowsPerPage)) {
+        currentPage++;
+        renderAcTable();
+      }
+    }
+
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        renderAcTable();
+      }
+    }
+    
+    function handleSearch() {
+      const query = document.getElementById('search-input').value.toLowerCase();
+      
+      if (query.trim() === "") {
+        filteredData = [...acData]; // reset kalau kosong
+      } else {
+        filteredData = acData.filter(ac => 
+          ac.zona.toLowerCase().includes(query) || 
+          ac.ac.toLowerCase().includes(query) || 
+          ac.statusAC.toLowerCase().includes(query) ||
+          ac.statusAlat.toLowerCase().includes(query)
+        );
+      }
+
+      currentPage = 1; // reset ke halaman pertama
+      renderAcTable();
+    }
+ 
+    function updateStatistics() {
+      const activeACs = acData
+        .filter(ac => ac.statusAC === 'on')
+        .reduce((sum, ac) => sum + parseInt(ac.ac), 0);
+
+      document.getElementById('total-aktif').textContent = activeACs;
+      document.getElementById('unit-aktif-text').textContent = `${activeACs} Unit AC Aktif`;
+
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      document.getElementById('current-date').textContent = now.toLocaleDateString('id-ID', options);
+    }
+    
+    // Fungsi untuk mengubah status AC
+    function toggleACStatus(id) {
+      const acIndex = acData.findIndex(ac => ac.id === id);
+      if (acIndex !== -1) {
+        const newState = acData[acIndex].statusAC === 'on' ? 'off' : 'on';
+        
+        // Kirim perintah ke Node-RED
+        const commandSent = sendCommand(acData[acIndex].zona, newState);
+        
+        if (commandSent) {
+          // Update UI sementara menunggu respons dari Node-RED
+          acData[acIndex].statusAC = newState;
+          renderAcTable();
+          updateCharts();
+          updateDots(); // Update titik di SVG
+          
+          console.log(`Menunggu feedback untuk ${acData[acIndex].zona} status ${newState}`);
+        } else {
+          alert('Gagal mengirim perintah. Periksa koneksi WebSocket.');
+        }
+      }
+    }
+    
+    // Fungsi untuk mematikan semua AC
+    function shutdownAll() {
+      if (confirm('Apakah Anda yakin ingin mematikan semua AC?')) {
+        let allCommandsSent = true;
+        
+        acData.forEach(ac => {
+          if (ac.statusAC === 'on') {
+            const commandSent = sendCommand(ac.zona, 'off');
+            if (!commandSent) {
+              allCommandsSent = false;
+            } else {
+              // Update UI sementara menunggu respons
+              ac.statusAC = 'off';
+            }
+          }
+        });
+
+        if (allCommandsSent) {
+          renderAcTable();
+          updateCharts();
+          updateDots(); // Update titik di SVG
+        } else {
+          alert('Gagal mengirim beberapa perintah. Periksa koneksi WebSocket.');
+        }
+      }
+    }
+    
+    // Fungsi untuk menyalakan semua AC
+    function startAll() {
+      if (confirm('Apakah Anda yakin ingin menyalakan semua AC?')) {
+        let allCommandsSent = true;
+
+        acData.forEach(ac => {
+          if (ac.statusAC === 'off') {
+            const commandSent = sendCommand(ac.zona, 'on');
+            if (!commandSent) {
+              allCommandsSent = false;
+            } else {
+              // Update UI sementara menunggu feedback
+              ac.statusAC = 'on';
+            }
+          }
+        });
+
+        if (allCommandsSent) {
+          renderAcTable();
+          updateCharts();
+          updateDots(); // Update titik di SVG
+        } else {
+          alert('Gagal mengirim beberapa perintah. Periksa koneksi WebSocket.');
+        }
+      }
+    }
+    
+    // Fungsi untuk memperbarui grafik berdasarkan status AC
+    function getCurrentTimeLabel() {
+      const now = new Date();
+      return now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function updateCharts() {
+      const activeACs = acData
+        .filter(ac => ac.statusAC === 'on')
+        .reduce((sum, ac) => sum + parseInt(ac.ac), 0);
+
+      if (window.acChart) {
+        const timeLabel = getCurrentTimeLabel();
+        window.acChart.data.labels.push(timeLabel);
+        window.acChart.data.datasets[0].data.push(activeACs);
+        window.acChart.update();
+      }
+    }
+    
+    // Popup helpers
+    function openPopup(id){
+      const el = document.getElementById('popup' + id);
+      if(el) el.classList.remove('hidden');
+    }
+    
+    function closePopup(id){
+      const el = document.getElementById('popup' + id);
+      if(el) el.classList.add('hidden');
+    }
+    
+    // Fungsi untuk memperbarui titik-titik di SVG
+    function updateDots() {
+      acData.forEach(ac => {
+        // Normalisasi nama zona: "Musholah 1" -> "musholah1"
+        const zoneName = ac.zona.toLowerCase().replace(/\s+/g, '');
+        const dotId = `dot-${zoneName}`;
+        const dotEl = document.getElementById(dotId);
+
+        if (dotEl) {
+          if (ac.statusAC === 'on') {
+            dotEl.classList.remove('inactive');
+            dotEl.classList.add('active');
+            dotEl.setAttribute("title", `${ac.zona} - ON`);
+          } else {
+            dotEl.classList.remove('active');
+            dotEl.classList.add('inactive');
+            dotEl.setAttribute("title", `${ac.zona} - OFF`);
+          }
+        }
+      });
+    }
+    
+    // Inisialisasi saat halaman dimuat
+    document.addEventListener('DOMContentLoaded', function() {
+      // Hubungkan ke WebSocket
+      connectWebSocket();
+      
+      filteredData = [...acData];
+      renderAcTable();
+      updateDots(); // Inisialisasi titik di SVG
+
+      // Konsumsi Daya
+      const ctx1 = document.getElementById('chartKonsumsi');
+      if(ctx1){
+        window.consumptionChart = new Chart(ctx1, {
+          type: 'line',
+          data: {
+            labels: ['08:30','10:00','12:00','14:00','16:00','18:00','20:00'],
+            datasets: [{
+              label: 'Konsumsi Daya (kWh)',
+              data: [25,18,22,20,15,12,8],
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245,158,11,0.2)',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: { 
+            responsive: true, 
+            plugins: { legend: { display: false } },
+            animation: {
+              duration: 1000,
+              easing: 'easeOutQuart'
+            }
+          }
+        });
+      }
+      
+      // Unit AC Aktif
+      const ctx2 = document.getElementById('chartAC');
+      if(ctx2){
+        window.acChart = new Chart(ctx2, {
+          type: 'line',
+          data: {
+            labels: ['08:30','10:00','12:00','14:00','16:00','18:00','20:00'],
+            datasets: [{
+              label: 'Unit AC Aktif',
+              data: [9,6,8,10,7,6,4],
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59,130,246,0.3)',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: { 
+            responsive: true, 
+            plugins: { legend: { display: false } },
+            animation: {
+              duration: 1000,
+              easing: 'easeOutQuart'
+            }
+          }
+        });
+      }
+    });
+
+    // normalisasi nama zona: "Musholah 1" -> "musholah1"
+    function normalizeZoneName(s) {
+      return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function updatePopupButton(zone) {
+      const btn = document.getElementById('popupBtn-' + zone);
+      if (!btn) {
+        console.warn('Tombol popup tidak ditemukan:', 'popupBtn-' + zone);
+        return;
+      }
+
+      // cari data di acData: properti di filemu adalah 'zona' dan 'statusAC'
+      const ac = acData.find(item => {
+        if (!item.zona) return false;
+        return normalizeZoneName(item.zona) === normalizeZoneName(zone);
+      });
+
+      if (!ac) {
+        // kalau nggak ketemu, tampilkan fallback
+        btn.textContent = 'Unknown';
+        btn.classList.remove('bg-green-600','hover:bg-green-700','bg-red-600','hover:bg-red-700');
+        btn.classList.add('bg-gray-300','text-black');
+        btn.style.display = '';
+        return;
+      }
+
+      // status di acData: 'on' / 'off' (perhatikan lowercase)
+      const isOn = (String(ac.statusAC || '').toLowerCase() === 'on');
+
+      // jangan set className langsung — gunakan classList supaya tidak menghapus kelas lain
+      btn.classList.remove('bg-green-600','hover:bg-green-700','bg-red-600','hover:bg-red-700','bg-gray-300');
+      btn.classList.remove('text-black','text-white');
+
+      if (isOn) {
+        btn.textContent = 'Nonaktifkan';
+        btn.classList.add('bg-red-600','hover:bg-red-700','text-white');
+      } else {
+        btn.textContent = 'Aktifkan';
+        btn.classList.add('bg-green-600','hover:bg-green-700','text-white');
+      }
+
+      // pastikan tombol tidak hidden
+      btn.style.display = '';
+    }
+
+    // Panggil updatePopupButton bila status acData berubah (mis. setelah toggle)
+    function syncPopupIfOpenById(acIndex) {
+      if (acIndex < 0 || acIndex >= acData.length) return;
+      const zoneNorm = normalizeZoneName(acData[acIndex].zona);
+      const popupEl = document.getElementById('popup' + zoneNorm);
+      if (popupEl && !popupEl.classList.contains('hidden')) {
+        updatePopupButton(zoneNorm);
+      }
+    }
+  </script>
+  <script>
+    function updateButton(dotId, btnId) {
+      const dot = document.getElementById(dotId);
+      const btn = document.getElementById(btnId);
+    
+      if (!dot || !btn) return;
+    
+      if (dot.classList.contains("active")) {
+        btn.textContent = "Matikan AC";
+      } else {
+        btn.textContent = "Hidupkan AC";
+      }
+    }
+    </script>
+   <script>
+    function openPopup(zone) {
+      // munculkan popup sesuai zona
+      document.getElementById("popup" + zone).classList.remove("hidden");
+      
+      // update teks + warna tombol sesuai status titik
+      updateButton("dot-" + zone, "popupBtn-" + zone);
+    }
+    
+    function closePopup(zone) {
+      document.getElementById("popup" + zone).classList.add("hidden");
+    }
+    
+    function updateButton(dotId, btnId) {
+      const dot = document.getElementById(dotId);
+      const btn = document.getElementById(btnId);
+    
+      if (!dot || !btn) return;
+    
+      if (dot.classList.contains("active")) {
+        btn.textContent = "Matikan AC";
+        btn.classList.remove("bg-green-500", "text-white");
+        btn.classList.add("bg-red-500", "text-white");   // merah kalau ON
+      } else {
+        btn.textContent = "Hidupkan AC";
+        btn.classList.remove("bg-red-500", "text-white");
+        btn.classList.add("bg-green-500", "text-white"); // hijau kalau OFF
+      }
+    }
+    </script>
+</body>
+</html>

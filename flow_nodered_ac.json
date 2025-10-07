@@ -1,0 +1,123 @@
+[
+    {
+        "id": "ce52314f67272753",
+        "type": "tab",
+        "label": "Flow 7",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "090d5dc47a039a1c",
+        "type": "websocket in",
+        "z": "ce52314f67272753",
+        "name": "Dashboard Input",
+        "server": "13d072ce344e9aba",
+        "client": "",
+        "x": 80,
+        "y": 200,
+        "wires": [
+            [
+                "2f2d84dd550a0a47"
+            ]
+        ]
+    },
+    {
+        "id": "3b0698657e7bfeec",
+        "type": "mysql",
+        "z": "ce52314f67272753",
+        "mydb": "8a5bf8bf5cedad10",
+        "name": "AC Database",
+        "x": 530,
+        "y": 200,
+        "wires": [
+            [
+                "6ea76544f6ae4c2a"
+            ]
+        ]
+    },
+    {
+        "id": "6ea76544f6ae4c2a",
+        "type": "debug",
+        "z": "ce52314f67272753",
+        "name": "DB Response",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "topic",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 730,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "2c22fafc1a43107c",
+        "type": "debug",
+        "z": "ce52314f67272753",
+        "name": "ESP32 Debug",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "2f2d84dd550a0a47",
+        "type": "function",
+        "z": "ce52314f67272753",
+        "name": "Update + History",
+        "func": "// Parse command dan update database\ntry {\n    const command = JSON.parse(msg.payload);\n    node.warn(`Command: ${command.action} for ${command.device_id}`);\n\n    // Query update unit_ac\n    let dbUpdate = {\n        topic: \"UPDATE unit_ac SET status_ac = ? WHERE zona = ?\",\n        payload: [command.action, command.device_id]\n    };\n\n    // Query insert ke ac_history\n    let dbHistory = {\n        topic: `INSERT INTO ac_history (ac_unit_id, status_ac, suhu, daya, voltage, arus) \n                SELECT id, ?, suhu, daya, voltage, arus FROM unit_ac WHERE zona = ?`,\n        payload: [command.action, command.device_id]\n    };\n\n    // Pesan untuk ESP32\n    let esp32Msg = {\n        payload: {\n            device_id: command.device_id,\n            action: command.action,\n            timestamp: new Date().toISOString()\n        }\n    };\n\n    // Output 1 -> Update unit_ac\n    // Output 2 -> Insert history\n    // Output 3 -> ESP32\n    return [dbUpdate, dbHistory, esp32Msg];\n} catch (e) {\n    node.error(\"Error: \" + e.message);\n    return [null, null, null];\n}",
+        "outputs": 3,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 280,
+        "y": 200,
+        "wires": [
+            [
+                "3b0698657e7bfeec"
+            ],
+            [
+                "3b0698657e7bfeec"
+            ],
+            [
+                "2c22fafc1a43107c"
+            ]
+        ]
+    },
+    {
+        "id": "13d072ce344e9aba",
+        "type": "websocket-listener",
+        "path": "/ac-control",
+        "wholemsg": "false"
+    },
+    {
+        "id": "8a5bf8bf5cedad10",
+        "type": "MySQLdatabase",
+        "name": "",
+        "host": "192.168.12.92",
+        "port": "3306",
+        "db": "ac_control",
+        "tz": "",
+        "charset": "UTF8"
+    },
+    {
+        "id": "04298d3bc1bf4ee0",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-node-mysql": "2.0.0"
+        }
+    }
+]

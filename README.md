@@ -1,7 +1,7 @@
 <h1 align="center">🌬️ IoT Dashboard AC Control – Full Monitoring & Automation System</h1>
 
 <p align="center">
-  <b>Real-time Smart Air Conditioner Control</b><br>
+  <b>Smart Air Conditioner Control with ESP32, Node-RED, and Real-Time Dashboard</b><br>
   Dashboard | Node-RED | MySQL | ESP32 | WebSocket
 </p>
 
@@ -10,8 +10,9 @@
 ## 🧠 Overview
 
 Proyek ini adalah sistem **IoT terintegrasi** untuk memantau dan mengontrol unit pendingin ruangan (**AC**) secara real-time.  
-Dibangun menggunakan **Node-RED** sebagai backend, **MySQL** untuk database, dan **HTML Dashboard** interaktif untuk antarmuka pengguna.  
-ESP32 berfungsi sebagai perangkat eksekutor untuk perintah ON/OFF.
+Dibangun menggunakan **Node-RED** sebagai backend, **MySQL** untuk penyimpanan data, **ESP32** untuk kontrol perangkat, dan **Dashboard Web Interaktif** untuk antarmuka pengguna.
+
+Sistem ini dapat digunakan di jaringan lokal maupun di-deploy ke server publik menggunakan WebSocket.
 
 ---
 
@@ -20,8 +21,10 @@ ESP32 berfungsi sebagai perangkat eksekutor untuk perintah ON/OFF.
 | File | Deskripsi |
 |------|------------|
 | `dashboard_ac_config1.html` | Dashboard web berbasis TailwindCSS & Chart.js |
-| `flow_nodered_ac.json` | Flow Node-RED (backend logic) |
+| `flow_nodered_ac.json` | Flow Node-RED untuk logic backend |
 | `database_ac_control.sql` | Struktur & data awal database MySQL |
+| `esp32_ac_control.ino` | Kode ESP32 untuk komunikasi WebSocket |
+| `platformio.ini` | Konfigurasi Project PlatformIO |
 | `README.md` | Dokumentasi proyek |
 | `assets/Denah.svg` *(opsional)* | Denah lokasi AC untuk visualisasi interaktif |
 
@@ -37,27 +40,29 @@ ESP32 berfungsi sebagai perangkat eksekutor untuk perintah ON/OFF.
         │  (MySQL Query)
         ▼
 [ Database: ac_control ]
-        │  (Update/Select)
+        │  (Status update)
         ▼
 [ ESP32 Device ]
 ```
 
-**Alur kerja singkat:**
-1. Dashboard mengirim perintah ON/OFF → Node-RED via WebSocket  
-2. Node-RED memperbarui status di MySQL (`unit_ac`, `ac_history`)  
-3. Node-RED mengirim instruksi ke ESP32  
-4. Dashboard menerima pembaruan status secara real-time
+**Alur kerja:**
+1. Dashboard mengirim perintah ON/OFF ke Node-RED melalui WebSocket  
+2. Node-RED memproses perintah, memperbarui database, dan meneruskan aksi ke ESP32  
+3. ESP32 mengaktifkan atau mematikan AC  
+4. ESP32 mengirim status balik ke Node-RED → Dashboard menampilkan status real-time
 
 ---
 
 ## 🌐 Dashboard (Frontend)
 
+**File:** `dashboard_ac_config1.html`
+
 ### ✨ Fitur:
-- **Denah interaktif:** setiap titik merepresentasikan unit AC  
-- **Status visual:** 🟢 ON | 🔴 OFF  
-- **Popup info lengkap:** suhu, daya, tegangan, arus, estimasi biaya  
-- **Control Button:** ON/OFF langsung dari browser  
-- **Responsive design** (desktop & mobile)
+- Denah interaktif lokasi AC  
+- Status visual: 🟢 ON | 🔴 OFF  
+- Popup detail (suhu, daya, arus, tegangan, estimasi biaya)  
+- Tombol kontrol langsung (ON/OFF)  
+- Responsif (mobile dan desktop)
 
 ### 🔌 Contoh Koneksi WebSocket
 ```js
@@ -71,7 +76,7 @@ function toggleACStatus(zone) {
 }
 ```
 
-> 💡 Dashboard ini dapat dijalankan langsung di browser tanpa server tambahan  
+> 💡 Bisa dijalankan langsung di browser tanpa server tambahan  
 > atau di-host melalui **GitHub Pages**.
 
 ---
@@ -80,16 +85,16 @@ function toggleACStatus(zone) {
 
 **File:** `flow_nodered_ac.json`
 
-### 📦 Node Fungsi Utama
+### 📦 Fungsi Utama:
 - **WebSocket In (`/ac-control`)** menerima perintah dari dashboard  
-- **Function Node: "Update + History"**
+- **Function Node “Update + History”**:
   - Update status di tabel `unit_ac`
-  - Tambah log ke `ac_history`
-  - Kirim feedback ke ESP32  
-- **MySQL Node:** mengelola koneksi & query  
-- **Debug Node:** memonitor data dan log aktivitas  
+  - Tambahkan data ke `ac_history`
+  - Kirim perintah ke ESP32  
+- **MySQL Node** untuk koneksi database  
+- **Debug Node** untuk monitoring log aktivitas  
 
-### 🧾 Contoh Output ke ESP32
+### 🧾 Contoh Output Node-RED ke ESP32:
 ```json
 {
   "device_id": "standbatik4",
@@ -104,8 +109,7 @@ function toggleACStatus(zone) {
 
 **File:** `database_ac_control.sql`
 
-### 🏗️ Struktur Tabel
-
+### 📊 Struktur Tabel
 #### `unit_ac`
 | Kolom | Tipe | Deskripsi |
 |--------|------|-----------|
@@ -122,53 +126,88 @@ function toggleACStatus(zone) {
 | Kolom | Tipe | Deskripsi |
 |--------|------|-----------|
 | id | INT | Primary key |
-| ac_unit_id | INT | ID unit dari tabel `unit_ac` |
+| ac_unit_id | INT | ID unit dari `unit_ac` |
 | status_ac | ENUM('ON','OFF') | Status saat itu |
-| suhu, daya, voltage, arus | FLOAT | Parameter saat log dicatat |
+| suhu, daya, voltage, arus | FLOAT | Data kondisi |
 | timestamp | DATETIME | Waktu pencatatan |
 
-### 📊 Contoh Data Awal
-| zona | status_ac | suhu | daya | voltage | arus |
-|------|------------|------|------|----------|------|
-| musholah1 | OFF | 24.5 | 120 | 220 | 0.5 |
-| standbatik4 | ON | 23.5 | 150 | 220 | 0.7 |
+---
+
+## 🧠 ESP32 Device
+
+**File:** `esp32_ac_control.ino`
+
+### 🔧 Fungsi Utama:
+- Terhubung ke WiFi  
+- Tersambung ke Node-RED via WebSocket  
+- Menerima perintah `ON/OFF`  
+- Mengontrol pin Transmitter 
+- Mengirim balik status ke Node-RED  
+
+### ⚙️ Contoh Konfigurasi
+```cpp
+#define Transmitter_PIN 26
+#define DEVICE_ID "standbatik4"
+
+const char* ssid = "NAMA_WIFI";
+const char* password = "PASSWORD_WIFI";
+const char* ws_server = "192.168.12.92"; // Node-RED IP
+const int ws_port = 1880;
+const char* ws_path = "/ac-control";
+```
+
+### 📦 Library yang Digunakan
+- `WiFi.h`
+- `WebSocketsClient.h`
+- `ArduinoJson.h`
+
+Contoh `platformio.ini`:
+```ini
+[env:esp32doit-devkit-v1]
+platform = espressif32
+board = esp32doit-devkit-v1
+framework = arduino
+
+lib_deps =
+  links2004/WebSockets
+  bblanchon/ArduinoJson
+```
 
 ---
 
 ## 🚀 Deployment Guide
 
-### 🪶 1. Setup Database
-Import file SQL:
+### 1️⃣ Setup Database
+Import `database_ac_control.sql` ke MySQL:
 ```bash
 mysql -u root -p < database_ac_control.sql
 ```
 
-### 🔧 2. Jalankan Node-RED
+### 2️⃣ Jalankan Node-RED
 1. Import `flow_nodered_ac.json`
-2. Atur:
-   - MySQL host → `192.168.12.92`
-   - WebSocket path → `/ac-control`
+2. Ubah host database & WebSocket path sesuai server kamu
 3. Klik **Deploy**
 
-### 💻 3. Jalankan Dashboard
-- Buka `dashboard_ac_config1.html`  
-  atau host via GitHub Pages:  
-  `https://<username>.github.io/dashboard-ac/`
+### 3️⃣ Jalankan ESP32
+1. Upload `esp32_ac_control.ino`
+2. Pastikan WiFi & server IP benar
+3. Buka Serial Monitor → pastikan koneksi WebSocket sukses
 
-### 🔍 4. Uji Sistem
-- Klik titik AC di dashboard → perintah dikirim ke Node-RED  
-- Cek debug log dan update database
+### 4️⃣ Jalankan Dashboard
+- Buka `dashboard_ac_config1.html` di browser  
+  atau buka GitHub Pages:  
+  `https://BudhiPrasetyo.github.io/dashboard-ac/`
 
 ---
 
-## 🧠 Teknologi yang Digunakan
+## 🧩 Teknologi yang Digunakan
 
 | Komponen | Teknologi |
 |-----------|------------|
 | Frontend | HTML5, TailwindCSS, Chart.js |
 | Backend | Node-RED (Function, MySQL, WebSocket) |
 | Database | MySQL |
-| IoT Device | ESP32 (WiFi + HTTP/WebSocket) |
+| IoT Device | ESP32 (WiFi + WebSocket) |
 
 ---
 
@@ -176,13 +215,13 @@ mysql -u root -p < database_ac_control.sql
 
 **Author:** Budhi Prasetyo  
 🌐 GitHub: [https://github.com/BudhiPrasetyo](https://github.com/BudhiPrasetyo)  
-📧 Email: budhiprasetyoo28@gmail.com
+📧 Email: *budhiprasetyoo28@gmail.com*  
 
 ---
 
 ## 🪪 Lisensi
 
-Lisensi **MIT** — bebas digunakan, dimodifikasi, dan dikembangkan dengan mencantumkan kredit pembuat aslinya.
+Proyek ini dirilis di bawah lisensi **MIT**, dan bebas digunakan, dimodifikasi, serta dikembangkan dengan mencantumkan kredit pembuat aslinya.
 
 ---
 

@@ -20,7 +20,7 @@ Sistem ini dapat digunakan di jaringan lokal maupun di-deploy ke server publik m
 
 | File | Deskripsi |
 |------|------------|
-| `dashboard_ac_config1.html` | Dashboard web berbasis TailwindCSS & Chart.js |
+| `Dashboard_AC.html` | Dashboard web berbasis TailwindCSS & Chart.js |
 | `flow_nodered_ac.json` | Flow Node-RED untuk logic backend |
 | `database_ac_control.sql` | Struktur & data awal database MySQL |
 | `esp32_ac_control.ino` | Kode ESP32 untuk komunikasi WebSocket |
@@ -55,7 +55,7 @@ Sistem ini dapat digunakan di jaringan lokal maupun di-deploy ke server publik m
 
 ## 🌐 Dashboard (Frontend)
 
-**File:** `dashboard_ac_config1.html`
+**File:** `Dashboard_AC.html`
 
 ### ✨ Fitur:
 - Denah interaktif lokasi AC  
@@ -194,9 +194,9 @@ mysql -u root -p < database_ac_control.sql
 3. Buka Serial Monitor → pastikan koneksi WebSocket sukses
 
 ### 4️⃣ Jalankan Dashboard
-- Buka `dashboard_ac_config1.html` di browser  
+- Buka `Dashboard_AC.html` di browser  
   atau buka GitHub Pages:  
-  `https://BudhiPrasetyo.github.io/dashboard-ac/`
+  `https://BudhiPrasetyo.github.io/Project-AC/`
 
 ---
 

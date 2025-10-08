@@ -175,7 +175,7 @@ mysql -u root -p < database_ac_control.sql
 ## 👨‍💻 Pengembang
 
 **Author:** Budhi Prasetyo  
-🌐 GitHub: [https://github.com/<username>](https://github.com/<username>)  
+🌐 GitHub: [https://github.com/<BudhiPrasetyo>](https://github.com/<BudhiPrasetyo>)  
 📧 Email: budhiprasetyoo28@gmail.com
 
 ---
